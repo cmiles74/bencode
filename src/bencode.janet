@@ -23,8 +23,10 @@
 (defn parse-error
   "Throws an error with the provided message for the given reader, the error
   will include the index of the reader."
-  [message reader-in]
-  (error (string message " at index " (get reader-in :index))))
+  [message &opt reader-in]
+  (if reader-in
+    (error (string message " at index " (get reader-in :index)))
+    (error (string message))))
 
 (defn end?
   "Returns true if the index points to the end of the buffer"
@@ -87,8 +89,8 @@
   (if-not (match-byte reader-in INT-FLAG)
     (parse-error "No integer found" reader-in))
   (let [int-in (try (read-integer-bytes reader-in)
-                    ([error] (parse-error (string "Couldn't read integer: " error)
-                                          reader-in)))]
+                    ([error] (parse-error
+                              (string "Couldn't read integer: " error))))]
     (if-not (match-byte reader-in END-FLAG)
       (parse-error "Unterminated integer" reader-in))
     int-in))
@@ -135,11 +137,11 @@
     (while (not (or (= END-FLAG (peek-byte reader-in))
                     (end? reader-in)))
       (let [key-in (try (read-string reader-in)
-                        ([error] (parse-error (string "Couldn't read key: " error)
-                                              reader-in)))
+                        ([error] (parse-error
+                                  (string "Couldn't read key: " error))))
             val-in (try (read-bencode-fn reader-in)
-                        ([error] (parse-error (string "Couldn't read value: " error)
-                                              reader-in)))]
+                        ([error] (parse-error
+                                  (string "Couldn't read value: " error))))]
         (put dict-out
              (if keyword (keyword key-in) key-in)
              val-in)))
@@ -165,6 +167,4 @@
     (read-dictionary read keyword-dicts reader-in)
 
     (parse-error "Unrecognized token" reader-in)))
-
-# (def x (read (reader "d3:agei45e6:familyl6:joanna5:emily4:finne7:addressd3:zip5:01027ee")))
 
