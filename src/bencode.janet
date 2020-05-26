@@ -28,17 +28,17 @@
     (error (string message " at index " (get reader-in :index)))
     (error (string message))))
 
-(defn end?
-  "Returns true if the index points to the end of the buffer"
-  [reader-in]
-  (if (= (get reader-in :index) (length (get reader-in :buffer)))
-    true false))
-
 (defn peek-byte
   "Returns the byte at the reader's current index"
   [reader-in]
   (let [byte (get (get reader-in :buffer) (get reader-in :index))]
     byte))
+
+(defn end?
+  "Returns true if the index points to the end of the buffer"
+  [reader-in]
+  (if (nil? (peek-byte reader-in))
+    true false))
 
 (defn read-byte
   "Returns the byte at the reader's current index and advances the index"
@@ -150,9 +150,13 @@
     dict-out))
 
 (defn read
-  "Reads the next bencoded value from the reader"
+  "Reads the next bencoded value from the reader, returns null if there is no
+  data left to read."
   [reader-in &opt keyword-dicts]
   (cond
+    (end? reader-in)
+    nil
+
     (= INT-FLAG (peek-byte reader-in))
     (read-integer reader-in)
 
