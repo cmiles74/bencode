@@ -126,7 +126,7 @@
         (array/push list-out token)))
     (if-not (match-byte reader-in END-FLAG)
       (parse-error "Unterminated list" reader-in))
-    list-out))
+    (apply tuple list-out)))
 
 (defn read-dictionary
   "Reads a dictionary, using the read-bencode-fn to parse items, from the reader"
@@ -147,30 +147,41 @@
              val-in)))
     (if-not (match-byte reader-in END-FLAG)
       (parse-error "Unterminated dictionary" reader-in))
-    dict-out))
+    (table/to-struct dict-out)))
+
+(defn read-bencode
+  "Reads the next bencoded value from the reader, returns null if there is no
+  data left to read. If the keyword-dicts value is true then the keys of
+  dictionaries will be turned into keywords"
+  [keyword-dicts reader-in]
+  (let [read-fn (partial read-bencode keyword-dicts)]
+    (cond
+      (end? reader-in)
+      nil
+
+      (= INT-FLAG (peek-byte reader-in))
+      (read-integer reader-in)
+
+      # strings begin with an integer indicating their length
+      (digit-byte? (peek-byte reader-in))
+      (read-string reader-in)
+
+      (= LIST-FLAG (peek-byte reader-in))
+      (read-list read-fn reader-in)
+
+      (= DICTIONARY-FLAG (peek-byte reader-in))
+      (read-dictionary read-fn keyword-dicts reader-in)
+
+      (parse-error "Unrecognized token" reader-in))))
 
 (defn read
   "Reads the next bencoded value from the reader, returns null if there is no
-  data left to read."
+  data left to read. If the keyword-dicts value is true then the keys of
+  dictionaries will be turned into keywords (the default is true)"
   [reader-in &opt keyword-dicts]
-  (cond
-    (end? reader-in)
-    nil
-
-    (= INT-FLAG (peek-byte reader-in))
-    (read-integer reader-in)
-
-    # strings begin with an integer indicating their length
-    (digit-byte? (peek-byte reader-in))
-    (read-string reader-in)
-
-    (= LIST-FLAG (peek-byte reader-in))
-    (read-list read reader-in)
-
-    (= DICTIONARY-FLAG (peek-byte reader-in))
-    (read-dictionary read keyword-dicts reader-in)
-
-    (parse-error "Unrecognized token" reader-in)))
+  (read-bencode
+   (if (nil? keyword-dicts) true keyword-dicts)
+   reader-in))
 
 (defmacro time
   "Calculates and prints how long it took to execute the provided expression
