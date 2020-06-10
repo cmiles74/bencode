@@ -80,7 +80,7 @@
   (test "Read integer 2"
         (same? 42 (read "i42e")))
 
-  (test "Read integer 1"
+  (test "Read integer 3"
         (same? -42 (read "i-42e")))
 
   (test "Read list 1"
