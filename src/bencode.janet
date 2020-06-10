@@ -143,7 +143,7 @@
                         ([error] (parse-error
                                   (string "Couldn't read value: " error))))]
         (put dict-out
-             (if keyword (keyword key-in) key-in)
+             (if keyword-dicts (keyword key-in) key-in)
              val-in)))
     (if-not (match-byte reader-in END-FLAG)
       (parse-error "Unterminated dictionary" reader-in))
