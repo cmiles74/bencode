@@ -183,12 +183,3 @@
    (if (nil? keyword-dicts) true keyword-dicts)
    reader-in))
 
-(defmacro time
-  "Calculates and prints how long it took to execute the provided expression
-  and returns the result"
-  [expression]
-  (with-syms [start result]
-    ~(let [,start (os/clock)
-           ,result ,expression]
-       (print (string "Elapsed time: " (- (os/clock) ,start) " sec"))
-       ,result)))

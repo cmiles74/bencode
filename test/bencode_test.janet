@@ -1,10 +1,21 @@
 (import tester :prefix "")
-(import "src/bencode" :as "b")
+(import "src/bencode" :as "bencode")
 
 (defn read
-  "Reads the provided bencoded string"
+  "Reads the provided bencoded string, doesn't turn dictionary keys into
+  keywords."
   [text]
-  (b/read (b/reader text) false))
+  (bencode/read (bencode/reader text) false))
+
+(defmacro time
+  "Calculates and prints how long it took to execute the provided expression
+  and returns the result of that expression."
+  [expression]
+  (with-syms [start result]
+    ~(let [,start (os/clock)
+           ,result ,expression]
+       (print (string "Elapsed time: " (- (os/clock) ,start) " sec"))
+       ,result)))
 
 (defn string-ish?
   "Returns true if x is a string or buffer"
