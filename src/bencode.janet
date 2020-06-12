@@ -3,24 +3,14 @@
 #
 
 # Special ASCII characters use during parsing
-(def MINUS 45)
-(def INT-FLAG 105)
-(def LENGTH-SEPARATOR 58)
-(def END-FLAG 101)
-(def LIST-FLAG 108)
-(def DICTIONARY-FLAG 100)
+(def- MINUS 45)
+(def- INT-FLAG 105)
+(def- LENGTH-SEPARATOR 58)
+(def- END-FLAG 101)
+(def- LIST-FLAG 108)
+(def- DICTIONARY-FLAG 100)
 
-(defn reader
-  "Returns a \"reader\" for the buffer.
-
-  A reader is a table with two keys...
-    :index  a pointer to the next byte to be read
-    :buffer the buffer being read."
-  [buffer &opt index-in]
-  (let [index (if-not (nil? index-in) index-in 0)]
-    @{:index index :buffer buffer}))
-
-(defn parse-error
+(defn- parse-error
   "Throws an error with the provided message for the given reader, the error
   will include the index of the reader."
   [message &opt reader-in]
@@ -28,19 +18,19 @@
     (error (string message " at index " (get reader-in :index)))
     (error (string message))))
 
-(defn peek-byte
+(defn- peek-byte
   "Returns the byte at the reader's current index"
   [reader-in]
   (let [byte (get (get reader-in :buffer) (get reader-in :index))]
     byte))
 
-(defn end?
+(defn- end?
   "Returns true if the index points to the end of the buffer"
   [reader-in]
   (if (nil? (peek-byte reader-in))
     true false))
 
-(defn read-byte
+(defn- read-byte
   "Returns the byte at the reader's current index and advances the index"
   [reader-in]
   (if (end? reader-in)
@@ -49,7 +39,7 @@
       (put reader-in :index (+ (get reader-in :index) 1))
       input)))
 
-(defn match-byte
+(defn- match-byte
   "If the reader's next byte  matches the provided byte, advances the reader"
   [reader-in byte]
   (cond
@@ -57,12 +47,12 @@
     (end? reader-in) false
     false))
 
-(defn digit-byte?
+(defn- digit-byte?
   "Returns true if the provided byte represents a digit"
   [byte]
   (if (and (< 47 byte) (> 58 byte)) true false))
 
-(defn read-integer-bytes
+(defn- read-integer-bytes
   "Reads the next integer from the buffer
 
   The integer may include a minus indicating sign, we simply keep reading bytes
@@ -83,7 +73,7 @@
       (buffer/push-byte buffer-out (read-byte reader-in)))
     (scan-number buffer-out)))
 
-(defn read-integer
+(defn- read-integer
   "Reads a bencoded integer from the reader"
   [reader-in]
   (if-not (match-byte reader-in INT-FLAG)
@@ -95,7 +85,7 @@
       (parse-error "Unterminated integer" reader-in))
     int-in))
 
-(defn read-string
+(defn- read-string
   "Reads a bencoded binary string from the reader"
   [reader-in]
   (if-not (digit-byte? (peek-byte reader-in))
@@ -114,7 +104,7 @@
       (buffer/push-byte buffer-out (read-byte reader-in)))
     buffer-out))
 
-(defn read-list
+(defn- read-list
   "Reads a list, using the read-bencode-fn to parse items, from the reader"
   [read-bencode-fn reader-in]
   (if-not (match-byte reader-in LIST-FLAG)
@@ -128,7 +118,7 @@
       (parse-error "Unterminated list" reader-in))
     (apply tuple list-out)))
 
-(defn read-dictionary
+(defn- read-dictionary
   "Reads a dictionary, using the read-bencode-fn to parse items, from the reader"
   [read-bencode-fn keyword-dicts reader-in]
   (if-not (match-byte reader-in DICTIONARY-FLAG)
@@ -149,7 +139,7 @@
       (parse-error "Unterminated dictionary" reader-in))
     (table/to-struct dict-out)))
 
-(defn read-bencode
+(defn- read-bencode
   "Reads the next bencoded value from the reader, returns null if there is no
   data left to read. If the keyword-dicts value is true then the keys of
   dictionaries will be turned into keywords"
@@ -174,6 +164,16 @@
 
       (parse-error "Unrecognized token" reader-in))))
 
+(defn reader
+  "Returns a \"reader\" for the buffer.
+
+  A reader is a table with two keys...
+    :index  a pointer to the next byte to be read
+    :buffer the buffer being read."
+  [buffer &opt index-in]
+  (let [index (if-not (nil? index-in) index-in 0)]
+    @{:index index :buffer buffer}))
+
 (defn read
   "Reads the next bencoded value from the reader, returns null if there is no
   data left to read. If the keyword-dicts value is true then the keys of
@@ -182,4 +182,12 @@
   (read-bencode
    (if (nil? keyword-dicts) true keyword-dicts)
    reader-in))
+
+(defn read-buffer
+  "Reads the first bencoded value from the provided buffer, returns null if
+  there is no data to read. If the keyword-dicts value is true then the keys of
+  dictionaries will be turned into keywords (the default is true)"
+  [buffer-in &opt keyword-dicts]
+  (let [reader-in (reader buffer-in)]
+    (read reader-in keyword-dicts)))
 
