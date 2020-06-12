@@ -11,7 +11,7 @@ verify that this implementation was working correctly.
 Add the dependency to your project...
 
 ```janet
-(declar-project
+(declare-project
   :dependencies ["https://github.com/cmiles74/bencode"])
 ```
 
