@@ -1,22 +1,6 @@
 (import tester :prefix "")
 (import "src/bencode" :as "bencode")
 
-(defn read
-  "Reads the provided bencoded string, doesn't turn dictionary keys into
-  keywords."
-  [text]
-  (bencode/read (bencode/reader text) false))
-
-(defmacro time
-  "Calculates and prints how long it took to execute the provided expression
-  and returns the result of that expression."
-  [expression]
-  (with-syms [start result]
-    ~(let [,start (os/clock)
-           ,result ,expression]
-       (print (string "Elapsed time: " (- (os/clock) ,start) " sec"))
-       ,result)))
-
 (defn string-ish?
   "Returns true if x is a string or buffer"
   [x]
@@ -71,6 +55,22 @@
 
     (= a b)))
 
+(defn read
+  "Reads the provided buffer of bencoded data, doesn't turn dictionary keys
+  into keywords."
+  [buffer-in]
+  (bencode/read-buffer buffer-in false))
+
+(defmacro time
+  "Calculates and prints how long it took to execute the provided expression
+  and returns the result of that expression."
+  [expression]
+  (with-syms [start result]
+    ~(let [,start (os/clock)
+           ,result ,expression]
+       (print (string "Elapsed time: " (- (os/clock) ,start) " sec"))
+       ,result)))
+
 (deftest
   "Read strings"
   (test "Read bencoded string 1"
@@ -119,10 +119,12 @@
                (read "d3:ham4:eggs4:costi5ee")))
 
   (test "Read nested list"
-        (same? [{"rice" "white" "beans" "kidney"} ["pepper" "salt"] "cheese" "eggs"  "ham"]
+        (same? [{"rice" "white" "beans" "kidney"} ["pepper" "salt"]
+                "cheese" "eggs"  "ham"]
                (read "l6:cheese3:ham4:eggsl4:salt6:peppered4:rice5:white5:beans6:kidneyee")))
 
   (test "Read nested map"
-        (same? {"cost" 5 "for" ["emily" "finn" "joanna"] "ham" "eggs" "map" {"apple" "red" "pear" "green"}}
+        (same? {"cost" 5 "for" ["emily" "finn" "joanna"] "ham" "eggs" "map"
+                {"apple" "red" "pear" "green"}}
                (read "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee"))))
 
