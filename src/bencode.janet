@@ -15,13 +15,13 @@
   will include the index of the reader."
   [message &opt reader-in]
   (if reader-in
-    (error (string message " at index " (get reader-in :index)))
+    (error (string message " at index " (reader-in :index)))
     (error (string message))))
 
 (defn- peek-byte
   "Returns the byte at the reader's current index"
   [reader-in]
-  (let [byte (get (get reader-in :buffer) (get reader-in :index))]
+  (let [byte (get (reader-in :buffer) (reader-in :index))]
     byte))
 
 (defn- end?
@@ -36,7 +36,7 @@
   (if (end? reader-in)
     (error "Read past the end of the buffer")
     (let [input (peek-byte reader-in)]
-      (put reader-in :index (+ (get reader-in :index) 1))
+      (put reader-in :index (+ (reader-in :index) 1))
       input)))
 
 (defn- match-byte
