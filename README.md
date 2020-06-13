@@ -21,7 +21,7 @@ We provide three functions to make it easier to consume data in the Bencode
 format. The easiest case is when you have one a string with one data structure.
 
 ```janet
-(import bencode :prefix "bencode")
+(import bencode)
 
 (var data (bencode/read-buffer "d3:ham4:eggs4:costi5ee"))
 ```
@@ -31,7 +31,7 @@ it. If you have more than one structure, you will want to wrap a reader around
 your buffer.
 
 ```janet
-(import bencode :prefix "bencode")
+(import bencode)
 
 (var reader (bencode/reader "d3:ham4:eggs4:costi5eed3:ham4:eggse"))
 (var item1 (bencode/read reader))
