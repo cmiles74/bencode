@@ -1,5 +1,5 @@
 (import tester :prefix "")
-(import "src/bencode" :as "bencode")
+(import "src/bencode")
 
 (defn string-ish?
   "Returns true if x is a string or buffer"
@@ -72,7 +72,16 @@
        ,result)))
 
 (deftest
-  "Read strings"
+  "Read bencoded data"
+  (test "Read integer 1"
+        (same? 0 (read "i0e")))
+
+  (test "Read integer 2"
+        (same? 42 (read "i42e")))
+
+  (test "Read integer 3"
+        (same? -42 (read "i-42e")))
+
   (test "Read bencoded string 1"
         (same? "Hello, World!"
            (read "13:Hello, World!")))
@@ -84,15 +93,6 @@
   (test "Read bencoded string 3"
         (same? "Здравей, Свят!"
            (read "25:Здравей, Свят!")))
-
-  (test "Read integer 1"
-        (same? 0 (read "i0e")))
-
-  (test "Read integer 2"
-        (same? 42 (read "i42e")))
-
-  (test "Read integer 3"
-        (same? -42 (read "i-42e")))
 
   (test "Read list 1"
         (same? (array/new 0)
@@ -116,7 +116,7 @@
 
   (test "Read map 3"
         (same? {"ham" "eggs" "cost" 5}
-               (read "d3:ham4:eggs4:costi5ee")))
+               (read "d4:costi5e3:ham4:eggse")))
 
   (test "Read nested list"
         (same? [{"rice" "white" "beans" "kidney"} ["pepper" "salt"]
@@ -128,3 +128,64 @@
                 {"apple" "red" "pear" "green"}}
                (read "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee"))))
 
+(deftest
+  "Write data structures"
+  (test "Write integer 1"
+        (let [bencoded (bencode/write 0)]
+          (same? "i0e" bencoded)))
+
+  (test "Write integer 2"
+        (let [bencoded (bencode/write 42)]
+          (same? "i42e" bencoded)))
+
+  (test "Write integer 3"
+        (let [bencoded (bencode/write -42)]
+          (same? "i-42e" bencoded)))
+
+  (test "Write string 1"
+        (let [bencoded (bencode/write "Hello, World!")]
+          (same? "13:Hello, World!" bencoded)))
+
+  (test "Write string 2"
+        (let [bencoded (bencode/write "Hällö, Würld!")]
+          (same? "16:Hällö, Würld!" bencoded)))
+
+  (test "Write string 3"
+        (let [bencoded (bencode/write "Здравей, Свят!")]
+          (same? "25:Здравей, Свят!" bencoded)))
+
+  (test "Write list 1"
+        (let [bencoded (bencode/write (array/new 0))]
+          (same? "le" bencoded)))
+
+  (test "Write list 2"
+        (let [bencoded (bencode/write ["cheese"])]
+              (same? "l6:cheesee" bencoded)))
+
+  (test "Write list 3"
+        (let [bencoded (bencode/write ["cheese" "eggs" "ham"])]
+          (same? "l6:cheese4:eggs3:hame" bencoded)))
+
+  (test "Write Map 1"
+        (let [bencoded (bencode/write {})]
+          (same? "de" bencoded)))
+
+  (test "Write Map 2"
+        (let [bencoded (bencode/write {"ham" "eggs"})]
+          (same? "d3:ham4:eggse" bencoded)))
+
+  (test "Write Map 3"
+        (let [bencoded (bencode/write {"ham" "eggs" "cost" 5})]
+          (same? "d4:costi5e3:ham4:eggse" bencoded)))
+
+  (test "Write nested list"
+        (let [bencoded (bencode/write [{"rice" "white" "beans" "kidney"} ["pepper" "salt"]
+                                       "cheese" "eggs"  "ham"])]
+          (same? "ld5:beans6:kidney4:rice5:whiteel6:pepper4:salte6:cheese4:eggs3:hame"
+                 bencoded)))
+
+  (test "Write nested map"
+        (let [bencoded (bencode/write {"cost" 5 "for" ["emily" "finn" "joanna"] "ham" "eggs" "map"
+                                       {"apple" "red" "pear" "green"}})]
+          (same? "d4:costi5e3:forl5:emily4:finn6:joannae3:ham4:eggs3:mapd5:apple3:red4:pear5:greenee"
+                 bencoded))))

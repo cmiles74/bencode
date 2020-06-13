@@ -17,6 +17,11 @@ Add the dependency to your project...
 
 # Usage
 
+This library provides functions for reading and writing data in the bencode 
+format.
+
+## Reading
+
 We provide three functions to make it easier to consume data in the Bencode 
 format. The easiest case is when you have one a string with one data structure.
 
@@ -44,6 +49,33 @@ reader and returns the next data structure in the buffer.
 
 When we read a map from the buffer, the keys are turned into keywords by 
 default. You can change this behavior by passing a `false` after the reader.
+
+## Writing
+
+We provide two function you may use to encode Janet data structures into the
+bencode format. The easiest case is when you have a data structure and would
+like a buffer with the same data in the bencode format.
+
+When a map is encoded, the keys are encoded as strings.
+
+```janet
+(import bencode)
+
+(var buffer-out (bencode/write {:name "Emily" :job "Student"}))
+```
+
+The `write-buffer` function accepts a buffer and a data structure and appends
+that data in the bencode format.
+
+```janet
+(import bencode)
+
+(let [buffer-out @""]
+  (bencode/write-buffer buffer-out {:name "Emily" :job "Student"})
+  (bencode/write-buffer buffer-out {:name "Joanna" :job "Career Advisor"}))
+```
+
+The buffer will now contain two data structures in the bencode format.
 
 ----
 

@@ -18,6 +18,13 @@
     (error (string message " at index " (reader-in :index)))
     (error (string message))))
 
+(defn- write-error
+  "Throws an error with the provided message for the given data object"
+  [message &opt data]
+  (if data
+    (error (string message " when writing data of type " (type data)))
+    (error (string message))))
+
 (defn- peek-byte
   "Returns the byte at the reader's current index"
   [reader-in]
@@ -105,7 +112,8 @@
     buffer-out))
 
 (defn- read-list
-  "Reads a list, using the read-bencode-fn to parse items, from the reader"
+  "Reads a list, using the read-bencode-fn to parse nested structures, from
+  the reader"
   [read-bencode-fn reader-in]
   (if-not (match-byte reader-in LIST-FLAG)
     (parse-error "No list found" reader-in))
@@ -119,7 +127,8 @@
     (apply tuple list-out)))
 
 (defn- read-dictionary
-  "Reads a dictionary, using the read-bencode-fn to parse items, from the reader"
+  "Reads a dictionary, using the read-bencode-fn to parse nested structures,
+  from the reader"
   [read-bencode-fn keyword-dicts reader-in]
   (if-not (match-byte reader-in DICTIONARY-FLAG)
     (parse-error "No dictionary found" reader-in))
@@ -177,7 +186,7 @@
 (defn read
   "Reads the next bencoded value from the reader, returns null if there is no
   data left to read. If the keyword-dicts value is true then the keys of
-  dictionaries will be turned into keywords (the default is true)"
+  dictionaries will be turned into keywords (the default is true)."
   [reader-in &opt keyword-dicts]
   (read-bencode
    (if (nil? keyword-dicts) true keyword-dicts)
@@ -186,8 +195,70 @@
 (defn read-buffer
   "Reads the first bencoded value from the provided buffer, returns null if
   there is no data to read. If the keyword-dicts value is true then the keys of
-  dictionaries will be turned into keywords (the default is true)"
+  dictionaries will be turned into keywords (the default is true)."
   [buffer-in &opt keyword-dicts]
   (let [reader-in (reader buffer-in)]
     (read reader-in keyword-dicts)))
 
+(defn- write-integer
+  "Writes the bencoded representation of the provided integer to the buffer."
+  [buffer-out int-in]
+  (buffer/push-byte buffer-out INT-FLAG)
+  (buffer/push-string buffer-out (string int-in))
+  (buffer/push-byte buffer-out END-FLAG))
+
+(defn- write-string
+  "Writes the bencoded represnetation of the provided string to the buffer."
+  [buffer-out string-in]
+  (buffer/push-string buffer-out (string (length string-in)))
+  (buffer/push-byte buffer-out LENGTH-SEPARATOR)
+  (buffer/push-string buffer-out string-in))
+
+(defn- write-list
+  "Writes the bencoded representation of the provide list to the buffer,
+  the write-fn is used to encoded nested structures."
+  [write-fn buffer-out list-in]
+  (buffer/push-byte buffer-out LIST-FLAG)
+  (let [sorted-in (sort-by string (apply array list-in))]
+    (seq [index :range [0 (length sorted-in)]]
+         (write-fn buffer-out (get sorted-in index))))
+  (buffer/push-byte buffer-out END-FLAG))
+
+(defn- write-map
+  "Writes the bencoded representation of the provided map to the buffer, the
+  write-fn is used to encode nested structures. Keywords are transformed into
+  strings (i.e. \":key\" becomes \"key\")."
+  [write-fn buffer-out map-in]
+  (buffer/push-byte buffer-out DICTIONARY-FLAG)
+  (let [sort-fn (fn [pair] (string (first pair)))
+        sorted-map (sort-by sort-fn (pairs map-in))]
+    (seq [index :range [0 (length sorted-map)]]
+         (buffer (write-string buffer-out (first (get sorted-map index)))
+                 (write-fn buffer-out (last (get sorted-map index))))))
+  (buffer/push-byte buffer-out END-FLAG))
+
+(defn write-buffer
+  "Write the bencoded representation of the data structure to the provided
+  buffer, keywords will be turned into strings (i.e. \":key\" becomes \"key\")."
+  [buffer-out data]
+  (cond
+    (int? data)
+    (write-integer buffer-out data)
+
+    (or (string? data) (buffer? data))
+    (write-string buffer-out data)
+
+    (or (array? data) (tuple? data))
+    (write-list write-buffer buffer-out data)
+
+    (or (table? data) (struct? data))
+    (write-map write-buffer buffer-out data)
+
+    (write-error "Unknown type" data)))
+
+(defn write
+  "Returns a buffer with the bencoded representation of the data structure,
+  keywords will be turned into strings (i.e. \":key\" becomes \"key\")."
+  [data]
+  (let [buffer-out @""]
+    (write-buffer buffer-out data)))
