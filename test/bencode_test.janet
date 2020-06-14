@@ -126,10 +126,8 @@
   (test "Read nested map"
         (same? {"cost" 5 "for" ["emily" "finn" "joanna"] "ham" "eggs" "map"
                 {"apple" "red" "pear" "green"}}
-               (read "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee"))))
+               (read "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee")))
 
-(deftest
-  "Write data structures"
   (test "Write integer 1"
         (let [bencoded (bencode/write 0)]
           (same? "i0e" bencoded)))
