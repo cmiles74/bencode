@@ -43,11 +43,15 @@ your buffer.
 ```janet
 > (import bencode)
 > (def reader (bencode/reader "d3:ham4:eggs4:costi5eed3:ham4:eggse"))
+
+@{:buffer "d3:ham4:eggs4:costi5eed3:ham4:eggse" :index 0}
+
 > (bencode/read reader)
 
 {:cost 5 :ham @"eggs"}
 
 > (bencode/read reader)
+
 {:ham @"eggs"}
 ```
 
