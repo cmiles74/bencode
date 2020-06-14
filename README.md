@@ -31,8 +31,7 @@ format. The easiest case is when you have one a string with one data structure.
 
 ```janet
 > (import bencode)
-> (let [data (bencode/read-buffer "d3:ham4:eggs4:costi5ee")]
-    data)
+> (def data (bencode/read-buffer "d3:ham4:eggs4:costi5ee"))
   
 {:cost 5 :ham @"eggs"}
 ```
@@ -61,7 +60,7 @@ default. You can change this behavior by passing a `false` after the reader.
 
 ## Writing
 
-We provide two function you may use to encode Janet data structures into the
+We provide two functions you may use to encode Janet data structures into the
 bencode format. The easiest case is when you have a data structure and would
 like a buffer with the same data in the bencode format.
 
