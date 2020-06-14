@@ -4,7 +4,7 @@
 (defn string-ish?
   "Returns true if x is a string or buffer"
   [x]
-  (or (string? x) (buffer? x)))
+  (or (string? x) (buffer? x) (keyword? x)))
 
 (defn list?
   "Returns true if x is an array or tuple"
@@ -18,11 +18,11 @@
 
 (defn same?
   "Returns true if both x and y are the same. If they are lists, then they must
-  have the same values in the same order. If they are maps, then they must have
-  the same keys with the same values in the same order."
+  have the same values. If they are maps, then they must have the same keys with
+  the same values."
   [a b]
   (cond
-    (and (number? a) (number? b))
+    (and (int? a) (int? b))
     (= a b)
 
     (and (string-ish? a) (string-ish? b))
@@ -47,10 +47,12 @@
       true
 
       (= (- (length a) 1)
-         (let [sort-fn (fn [pair] (string (first pair)))]
+         (let [sort-fn (fn [pair] (string (first pair)))
+               sa (sort-by sort-fn (pairs a))
+               sb (sort-by sort-fn (pairs b))]
            (last (seq [index :range [0 (length a)]
-                       :while (same? (get (sort-by sort-fn (pairs a)) index)
-                                     (get (sort-by sort-fn (pairs b)) index))]
+                       :while (same? (get sa index)
+                                     (get sb index))]
                       index)))))
 
     (= a b)))
@@ -59,7 +61,7 @@
   "Reads the provided buffer of bencoded data, doesn't turn dictionary keys
   into keywords."
   [buffer-in]
-  (bencode/read-buffer buffer-in false))
+  (bencode/read-buffer buffer-in))
 
 (defmacro time
   "Calculates and prints how long it took to execute the provided expression
@@ -95,37 +97,37 @@
            (read "25:Здравей, Свят!")))
 
   (test "Read list 1"
-        (same? (array/new 0)
+        (same? @[]
                (read "le")))
 
   (test "Read list 2"
-        (same? ["cheese"]
+        (same? @[@"cheese"]
                (read "l6:cheesee")))
 
   (test "Read list 3"
-        (same? ["cheese" "eggs" "ham"]
+        (same? @[@"cheese" @"eggs" @"ham"]
                (read "l6:cheese3:ham4:eggse")))
 
   (test "Read map 1"
-        (same? {}
+        (same? @{}
                (read "de")))
 
   (test "Read map 2"
-        (same? {"ham" "eggs"}
+        (same? @{:ham @"eggs"}
                (read "d3:ham4:eggse")))
 
   (test "Read map 3"
-        (same? {"ham" "eggs" "cost" 5}
+        (same? @{:ham @"eggs" :cost 5}
                (read "d4:costi5e3:ham4:eggse")))
 
   (test "Read nested list"
-        (same? [{"rice" "white" "beans" "kidney"} ["pepper" "salt"]
-                "cheese" "eggs"  "ham"]
+        (same? @[@{:rice @"white" :beans @"kidney"} @[@"pepper" @"salt"]
+                @"cheese" @"eggs"  @"ham"]
                (read "l6:cheese3:ham4:eggsl4:salt6:peppered4:rice5:white5:beans6:kidneyee")))
 
   (test "Read nested map"
-        (same? {"cost" 5 "for" ["emily" "finn" "joanna"] "ham" "eggs" "map"
-                {"apple" "red" "pear" "green"}}
+        (same? @{:cost 5 :for @[@"emily" @"finn" @"joanna"] @"ham" @"eggs" @"map"
+                @{:apple @"red" :pear @"green"}}
                (read "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee")))
 
   (test "Write integer 1"
