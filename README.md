@@ -30,9 +30,11 @@ We provide three functions to make it easier to consume data in the Bencode
 format. The easiest case is when you have one a string with one data structure.
 
 ```janet
-(import bencode)
-
-(var data (bencode/read-buffer "d3:ham4:eggs4:costi5ee"))
+> (import bencode)
+> (let [data (bencode/read-buffer "d3:ham4:eggs4:costi5ee")]
+    data)
+  
+{:cost 5 :ham @"eggs"}
 ```
 
 The `read-buffer` function reads the first structure from the buffer and returns
@@ -40,11 +42,14 @@ it. If you have more than one structure, you will want to wrap a reader around
 your buffer.
 
 ```janet
-(import bencode)
+> (import bencode)
+> (def reader (bencode/reader "d3:ham4:eggs4:costi5eed3:ham4:eggse"))
+> (bencode/read reader)
 
-(var reader (bencode/reader "d3:ham4:eggs4:costi5eed3:ham4:eggse"))
-(var item1 (bencode/read reader))
-(var item2 (bencode/read reader))
+{:cost 5 :ham @"eggs"}
+
+> (bencode/read reader)
+{:ham @"eggs"}
 ```
 
 The `reader` function returns a map that includes that buffer of data and keeps
@@ -63,20 +68,25 @@ like a buffer with the same data in the bencode format.
 When a map is encoded, the keys are encoded as strings.
 
 ```janet
-(import bencode)
+> (import bencode)
+> (def buffer-out (bencode/write {:name "Emily" :job "Student"}))
 
-(var buffer-out (bencode/write {:name "Emily" :job "Student"}))
+@"d3:job7:Student4:name5:Emilye"
 ```
 
 The `write-buffer` function accepts a buffer and a data structure and appends
 that data in the bencode format.
 
 ```janet
-(import bencode)
+> (import bencode)
+> (def buffer-out @"")
+> (bencode/write-buffer buffer-out {:name "Emily" :job "Student"})
 
-(let [buffer-out @""]
-  (bencode/write-buffer buffer-out {:name "Emily" :job "Student"})
-  (bencode/write-buffer buffer-out {:name "Joanna" :job "Career Advisor"}))
+@"d3:job7:Student4:name5:Emilye"
+
+> (bencode/write-buffer buffer-out {:name "Joanna" :job "Career Advisor"})
+
+@"d3:job7:Student4:name5:Emilyed3:job14:Career Advisor4:name6:Joannae"
 ```
 
 The buffer will now contain two data structures in the bencode format.
