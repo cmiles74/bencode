@@ -2,6 +2,8 @@
 
 A Janet library for decoding data in the [Bencode][0] format.
 
+![Continuous Integration](https://github.com/cmiles74/bencode/workflows/Continuous%20Integration/badge.svg)
+
 I read through the source code of several Bencode libraries but I spent the most
 time with the [nREPL/bencode][1] project, I used a lot of their test strings to
 verify that this implementation was working correctly.
