@@ -1,3 +1,4 @@
+
 #
 # Provides functions for decoding data in the bencode format.
 #
@@ -124,7 +125,7 @@
         (array/push list-out token)))
     (if-not (match-byte reader-in END-FLAG)
       (parse-error "Unterminated list" reader-in))
-    (apply tuple list-out)))
+    list-out))
 
 (defn- read-dictionary
   "Reads a dictionary, using the read-bencode-fn to parse nested structures,
@@ -146,7 +147,7 @@
              val-in)))
     (if-not (match-byte reader-in END-FLAG)
       (parse-error "Unterminated dictionary" reader-in))
-    (table/to-struct dict-out)))
+    dict-out))
 
 (defn- read-bencode
   "Reads the next bencoded value from the reader, returns null if there is no
