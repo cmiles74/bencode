@@ -73,7 +73,7 @@
       (buffer/push-byte buffer-out (read-byte reader-in)))
 
     # make sure we have at least one digit
-    (if (not (digit-byte? (peek-byte reader-in)))
+    (if-not (digit-byte? (peek-byte reader-in))
       (parse-error "No digits for integer" reader-in))
 
     # read all of the digits
