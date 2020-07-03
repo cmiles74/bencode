@@ -1,15 +1,16 @@
-
 #
 # Provides functions for decoding data in the bencode format.
 #
 
 # Special ASCII characters use during parsing
+(def- NEW-LINE 10)
+(def- CARRIAGE-RETURN 13)
 (def- MINUS 45)
-(def- INT-FLAG 105)
 (def- LENGTH-SEPARATOR 58)
-(def- END-FLAG 101)
-(def- LIST-FLAG 108)
 (def- DICTIONARY-FLAG 100)
+(def- END-FLAG 101)
+(def- INT-FLAG 105)
+(def- LIST-FLAG 108)
 
 (defn- parse-error
   "Throws an error with the provided message for the given reader, the error
@@ -38,7 +39,7 @@
   (if (nil? (peek-byte reader-in))
     true false))
 
-(defn- read-byte
+(defn- read-byte-buffer
   "Returns the byte at the reader's current index and advances the index"
   [reader-in]
   (if (end? reader-in)
@@ -46,6 +47,25 @@
     (let [input (peek-byte reader-in)]
       (put reader-in :index (+ (reader-in :index) 1))
       input)))
+
+(defn- read-byte-stream
+  "Reads another byte from the stream, appends it to the buffer for the reader,
+  increments the index and returns that byte"
+  [reader-stream-in]
+  (if (end? reader-stream-in)
+    (error "The stream has been closed")
+    (let [input (get (reader-stream-in :buffer) (reader-stream-in :index))]
+      (net/read (reader-stream-in :stream) 1 (reader-stream-in :buffer))
+      (put reader-stream-in :index (+ (reader-stream-in :index) 1))
+      input)))
+
+(defn- read-byte
+  "Reads the next byte from the provided reader. If the reader is wrapping a
+  network stream, this function will block until a byte is available to read"
+  [reader-in]
+  (if (reader-in :stream)
+    (read-byte-stream reader-in)
+    (read-byte-buffer reader-in)))
 
 (defn- match-byte
   "If the reader's next byte  matches the provided byte, advances the reader"
@@ -59,6 +79,22 @@
   "Returns true if the provided byte represents a digit"
   [byte]
   (if (and (< 47 byte) (> 58 byte)) true false))
+
+(defn clear-reader
+  "Clears a reader by dropping all of the read data from the buffer and
+  resetting the index"
+  [reader-in]
+  (if (reader-in :stream)
+    @{:index 0
+      :buffer (buffer/slice (reader-in :buffer) -1)
+      :stream (reader-in :stream)}
+    @{:index 0
+      :buffer (buffer/slice (reader-in :buffer) -1)}))
+
+(defn advance-clear-reader
+  [reader-in]
+  (read-byte reader-in)
+  (clear-reader reader-in))
 
 (defn- read-integer-bytes
   "Reads the next integer from the buffer
@@ -149,15 +185,39 @@
       (parse-error "Unterminated dictionary" reader-in))
     dict-out))
 
+(defn- peek-newline
+  [reader-in]
+  (if (or (= NEW-LINE (peek-byte reader-in))
+          (= CARRIAGE-RETURN (peek-byte reader-in)))
+    true false))
+
+(defn- read-newlines
+  "Reads one or more new lines from the reader"
+  [reader-in]
+  (while (and (not (end? reader-in))
+             (peek-newline reader-in))
+    (read-byte reader-in)
+    (clear-reader reader-in))
+  nil)
+
 (defn- read-bencode
   "Reads the next bencoded value from the reader, returns null if there is no
-  data left to read. If the keyword-dicts value is true then the keys of
-  dictionaries will be turned into keywords"
-  [keyword-dicts reader-in]
-  (let [read-fn (partial read-bencode keyword-dicts)]
+  data left to read.
+
+  If the keyword-dicts value is true then the keys of dictionaries will be
+  turned into keywords.
+
+  If the ignore-newlines value is true then new line characters in between
+  bencoded values will be ignored."
+  [keyword-dicts ignore-newlines reader-in]
+  (let [read-fn (partial read-bencode keyword-dicts ignore-newlines)]
     (cond
       (end? reader-in)
       nil
+
+      (and (peek-newline reader-in)
+           ignore-newlines)
+      (read-newlines reader-in)
 
       (= INT-FLAG (peek-byte reader-in))
       (read-integer reader-in)
@@ -172,34 +232,71 @@
       (= DICTIONARY-FLAG (peek-byte reader-in))
       (read-dictionary read-fn keyword-dicts reader-in)
 
-      (parse-error "Unrecognized token" reader-in))))
+      (parse-error (string "Unrecognized token \"" (peek-byte reader-in) "\"")
+                   reader-in))))
 
 (defn reader
   "Returns a \"reader\" for the buffer.
 
   A reader is a table with two keys...
     :index  a pointer to the next byte to be read
-    :buffer the buffer being read."
+    :buffer the buffer being read"
   [buffer &opt index-in]
   (let [index (if-not (nil? index-in) index-in 0)]
     @{:index index :buffer buffer}))
 
+(defn reader-stream
+  "Returns a \"reader\" for the stream.
+
+  A stream reader is a table with three keys...
+    :index  a pointer to the next byte to be read
+    :buffer the data read from the stream
+    :stream the stream we're reading from"
+  [stream]
+  (let [buffer-in @""]
+    (net/read stream 1 buffer-in)
+    @{:index 0 :buffer buffer-in :stream stream}))
+
 (defn read
   "Reads the next bencoded value from the reader, returns null if there is no
-  data left to read. If the keyword-dicts value is true then the keys of
-  dictionaries will be turned into keywords (the default is true)."
-  [reader-in &opt keyword-dicts]
+  data left to read.
+
+  If the keyword-dicts value is true then the keys of dictionaries will be
+  turned into keywords (the default is true).
+
+  If the ignore-newlines value is true then new line characters in between the
+  bencoded values will be ignored (the default is false)."
+  [reader-in &opt keyword-dicts ignore-newlines]
   (read-bencode
    (if (nil? keyword-dicts) true keyword-dicts)
+   ignore-newlines
    reader-in))
 
 (defn read-buffer
   "Reads the first bencoded value from the provided buffer, returns null if
-  there is no data to read. If the keyword-dicts value is true then the keys of
-  dictionaries will be turned into keywords (the default is true)."
-  [buffer-in &opt keyword-dicts]
+  there is no data to read.
+
+  If the keyword-dicts value is true then the keys of dictionaries will be
+  turned into keywords (the default is true).
+
+  If the ignore-newlines value is true then new line characters in between the
+  bencoded values will be ignored (the default is false)."
+  [buffer-in &opt keyword-dicts ignore-newlines]
   (let [reader-in (reader buffer-in)]
-    (read reader-in keyword-dicts)))
+    (read reader-in keyword-dicts ignore-newlines)))
+
+(defn read-stream
+  "Reads the first bencoded value from the provided stream. If there is no data
+  in the stream to be read, this function will block until data is available.
+
+  If the keyword-dicts value is true then the keys of dictionaries will be
+  turned into keywords (the default is true).
+
+  If the ignore-newlines value is true then new line characters in between the
+  bencoded values will be ignored (the default is false)."
+  [stream &opt keyword-dicts ignore-newlines]
+  (let [reader-in (reader-stream stream)]
+    (read reader-in keyword-dicts ignore-newlines)))
 
 (defn- write-integer
   "Writes the bencoded representation of the provided integer to the buffer."
