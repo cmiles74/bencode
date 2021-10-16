@@ -14,6 +14,9 @@ jobs:
         git clone https://github.com/janet-lang/janet.git /tmp/janet
         cd /tmp/janet
         sudo make all test install
+        git clone https://github.com/janet-lang/jpm.git /tmp/jpm
+        cd /tmp/jpm
+        sudo janet bootstrap.janet
     - name: Build and Install Dependencies
       run: sudo jpm deps
     - name: Run Tests
