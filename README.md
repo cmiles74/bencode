@@ -96,7 +96,29 @@ that data in the bencode format.
 
 The buffer will now contain two data structures in the bencode format.
 
+# Building
+
+This library uses [JPM][2] to manage dependencies, run tests, etc. If you plan
+on hacking away at this library you will need to get JPM installed. With that
+out of the way, you may clone the project and pull in the dependencies the 
+project needs (at this time, only the testing library).
+
+```shell
+$ cd bencode
+$ jpm deps
+```
+
+The dependencies will be installed and now you can run the test suite.
+
+```shell
+$ jpm test
+```
+
+The tests should run quickly and they all should pass. If you have a pull 
+request, please make sure the tests are passing. `;-)`
+
 ----
 
 [0]: https://en.wikipedia.org/wiki/Bencode
 [1]: https://github.com/nrepl/bencode
+[2]: https://github.com/janet-lang/jpm
