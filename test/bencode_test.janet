@@ -1,5 +1,5 @@
 (import tester :prefix "")
-(import "src/bencode")
+(import "../src/bencode")
 
 (defn string-ish?
   "Returns true if x is a string or buffer"
