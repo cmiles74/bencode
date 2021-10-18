@@ -138,8 +138,8 @@
   (let [length (read-integer-bytes reader-in)
         buffer-out (buffer/new 0)]
 
-    (if (<= length 0)
-      (parse-error "String length must be greater than 0" reader-in))
+    (if (> 0 length)
+      (parse-error (string "String length cannot be less than zero (" length ")") reader-in))
 
     (if-not (match-byte reader-in LENGTH-SEPARATOR)
       (parse-error "No separator \":\" after string length" reader-in))

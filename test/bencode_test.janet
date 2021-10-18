@@ -96,6 +96,10 @@
         (= "Здравей, Свят!"
            (read "25:Здравей, Свят!")))
 
+  (test "Read empty bencoded string"
+        (same? ""
+               (read "0:")))
+
   (test "Read list 1"
         (= []
            (read "le")))
@@ -108,6 +112,10 @@
         (= ["cheese" "ham" "eggs"]
            (read "l6:cheese3:ham4:eggse")))
 
+  (test "Read list with empty string"
+        (same? @[@"cheese" @"" @"eggs" @"ham"]
+               (read "l6:cheese0:3:ham4:eggse")))
+
   (test "Read map 1"
         (= {}
            (read "de")))
@@ -119,6 +127,10 @@
   (test "Read map 3"
         (= {:ham "eggs" :cost 5}
            (read "d4:costi5e3:ham4:eggse")))
+
+  (test "Read map with empty string value"
+        (same? @{:ham @"eggs" :cost 5 :code @""}
+               (read "d4:costi5e3:ham4:eggs4:code0:e")))
 
   (test "Read nested list"
         (= ["cheese" "ham" "eggs" ["salt" "pepper"]
