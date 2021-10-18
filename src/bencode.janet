@@ -131,7 +131,7 @@
 
 (defn- read-string
   "Reads a bencoded binary string from the reader"
-  [reader-in]
+  [return-mutable reader-in]
   (if-not (digit-byte? (peek-byte reader-in))
     (parse-error "No length found for string" reader-in))
 
@@ -146,12 +146,14 @@
 
     (for count 0 length
       (buffer/push-byte buffer-out (read-byte reader-in)))
-    buffer-out))
+    (if return-mutable
+      buffer-out
+      (string buffer-out))))
 
 (defn- read-list
   "Reads a list, using the read-bencode-fn to parse nested structures, from
   the reader"
-  [read-bencode-fn reader-in]
+  [read-bencode-fn return-mutable reader-in]
   (if-not (match-byte reader-in LIST-FLAG)
     (parse-error "No list found" reader-in))
   (let [list-out (array/new 0)]
@@ -161,18 +163,20 @@
         (array/push list-out token)))
     (if-not (match-byte reader-in END-FLAG)
       (parse-error "Unterminated list" reader-in))
-    list-out))
+    (if return-mutable
+      list-out
+      (tuple ;list-out))))
 
 (defn- read-dictionary
   "Reads a dictionary, using the read-bencode-fn to parse nested structures,
   from the reader"
-  [read-bencode-fn keyword-dicts reader-in]
+  [read-bencode-fn keyword-dicts return-mutable reader-in]
   (if-not (match-byte reader-in DICTIONARY-FLAG)
     (parse-error "No dictionary found" reader-in))
   (let [dict-out @{}]
     (while (not (or (= END-FLAG (peek-byte reader-in))
                     (end? reader-in)))
-      (let [key-in (try (read-string reader-in)
+      (let [key-in (try (read-string return-mutable reader-in)
                         ([error] (parse-error
                                   (string "Couldn't read key: " error))))
             val-in (try (read-bencode-fn reader-in)
@@ -183,7 +187,9 @@
              val-in)))
     (if-not (match-byte reader-in END-FLAG)
       (parse-error "Unterminated dictionary" reader-in))
-    dict-out))
+    (if return-mutable
+      dict-out
+      (table/to-struct dict-out))))
 
 (defn- peek-newline
   [reader-in]
@@ -204,13 +210,17 @@
   "Reads the next bencoded value from the reader, returns null if there is no
   data left to read.
 
-  If the keyword-dicts value is true then the keys of dictionaries will be
+  If the keyword-dicts value is true, then the keys of dictionaries will be
   turned into keywords.
 
-  If the ignore-newlines value is true then new line characters in between
-  bencoded values will be ignored."
-  [keyword-dicts ignore-newlines reader-in]
-  (let [read-fn (partial read-bencode keyword-dicts ignore-newlines)]
+  If the ignore-newlines value is true, then new line characters in between
+  bencoded values will be ignored.
+
+  If the return-mutable value is true, then the result uses mutable data
+  structures (the default is false)."
+  [keyword-dicts ignore-newlines return-mutable reader-in]
+  (let [read-fn
+        (partial read-bencode keyword-dicts ignore-newlines return-mutable)]
     (cond
       (end? reader-in)
       nil
@@ -224,13 +234,13 @@
 
       # strings begin with an integer indicating their length
       (digit-byte? (peek-byte reader-in))
-      (read-string reader-in)
+      (read-string return-mutable reader-in)
 
       (= LIST-FLAG (peek-byte reader-in))
-      (read-list read-fn reader-in)
+      (read-list read-fn return-mutable reader-in)
 
       (= DICTIONARY-FLAG (peek-byte reader-in))
-      (read-dictionary read-fn keyword-dicts reader-in)
+      (read-dictionary read-fn keyword-dicts return-mutable reader-in)
 
       (parse-error (string "Unrecognized token \"" (peek-byte reader-in) "\"")
                    reader-in))))
@@ -261,42 +271,52 @@
   "Reads the next bencoded value from the reader, returns null if there is no
   data left to read.
 
-  If the keyword-dicts value is true then the keys of dictionaries will be
+  If the keyword-dicts value is true, then the keys of dictionaries will be
   turned into keywords (the default is true).
 
-  If the ignore-newlines value is true then new line characters in between the
-  bencoded values will be ignored (the default is false)."
-  [reader-in &opt keyword-dicts ignore-newlines]
+  If the ignore-newlines value is true, then new line characters in between the
+  bencoded values will be ignored (the default is false).
+
+  If the return-mutable value is true, then the result uses mutable data
+  structures (the default is false)."
+  [reader-in &opt keyword-dicts ignore-newlines return-mutable]
   (read-bencode
    (if (nil? keyword-dicts) true keyword-dicts)
    ignore-newlines
+   return-mutable
    reader-in))
 
 (defn read-buffer
   "Reads the first bencoded value from the provided buffer, returns null if
   there is no data to read.
 
-  If the keyword-dicts value is true then the keys of dictionaries will be
+  If the keyword-dicts value is true, then the keys of dictionaries will be
   turned into keywords (the default is true).
 
-  If the ignore-newlines value is true then new line characters in between the
-  bencoded values will be ignored (the default is false)."
-  [buffer-in &opt keyword-dicts ignore-newlines]
+  If the ignore-newlines value is true, then new line characters in between the
+  bencoded values will be ignored (the default is false).
+
+  If the return-mutable value is true, then the result uses mutable data
+  structures (the default is false)."
+  [buffer-in &opt keyword-dicts ignore-newlines return-mutable]
   (let [reader-in (reader buffer-in)]
-    (read reader-in keyword-dicts ignore-newlines)))
+    (read reader-in keyword-dicts ignore-newlines return-mutable)))
 
 (defn read-stream
   "Reads the first bencoded value from the provided stream. If there is no data
   in the stream to be read, this function will block until data is available.
 
-  If the keyword-dicts value is true then the keys of dictionaries will be
+  If the keyword-dicts value is true, then the keys of dictionaries will be
   turned into keywords (the default is true).
 
-  If the ignore-newlines value is true then new line characters in between the
-  bencoded values will be ignored (the default is false)."
-  [stream &opt keyword-dicts ignore-newlines]
+  If the ignore-newlines value is true, then new line characters in between the
+  bencoded values will be ignored (the default is false).
+
+  If the return-mutable value is true, then the result uses mutable data
+  structures (the default is false)."
+  [stream &opt keyword-dicts ignore-newlines return-mutable]
   (let [reader-in (reader-stream stream)]
-    (read reader-in keyword-dicts ignore-newlines)))
+    (read reader-in keyword-dicts ignore-newlines return-mutable)))
 
 (defn- write-integer
   "Writes the bencoded representation of the provided integer to the buffer."

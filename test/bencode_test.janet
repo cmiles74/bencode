@@ -60,8 +60,8 @@
 (defn read
   "Reads the provided buffer of bencoded data, doesn't turn dictionary keys
   into keywords."
-  [buffer-in]
-  (bencode/read-buffer buffer-in))
+  [buffer-in &opt keyword-dicts ignore-newlines return-mutable]
+  (bencode/read-buffer buffer-in keyword-dicts ignore-newlines return-mutable))
 
 (defmacro time
   "Calculates and prints how long it took to execute the provided expression
@@ -76,59 +76,68 @@
 (deftest
   "Read bencoded data"
   (test "Read integer 1"
-        (same? 0 (read "i0e")))
+        (= 0 (read "i0e")))
 
   (test "Read integer 2"
-        (same? 42 (read "i42e")))
+        (= 42 (read "i42e")))
 
   (test "Read integer 3"
-        (same? -42 (read "i-42e")))
+        (= -42 (read "i-42e")))
 
   (test "Read bencoded string 1"
-        (same? "Hello, World!"
+        (= "Hello, World!"
            (read "13:Hello, World!")))
 
   (test "Read bencoded string 2"
-        (same? "Hällö, Würld!"
+        (= "Hällö, Würld!"
            (read "16:Hällö, Würld!")))
 
   (test "Read bencoded string 3"
-        (same? "Здравей, Свят!"
+        (= "Здравей, Свят!"
            (read "25:Здравей, Свят!")))
 
   (test "Read list 1"
-        (same? @[]
-               (read "le")))
+        (= []
+           (read "le")))
 
   (test "Read list 2"
-        (same? @[@"cheese"]
-               (read "l6:cheesee")))
+        (= ["cheese"]
+           (read "l6:cheesee")))
 
   (test "Read list 3"
-        (same? @[@"cheese" @"eggs" @"ham"]
-               (read "l6:cheese3:ham4:eggse")))
+        (= ["cheese" "ham" "eggs"]
+           (read "l6:cheese3:ham4:eggse")))
 
   (test "Read map 1"
-        (same? @{}
-               (read "de")))
+        (= {}
+           (read "de")))
 
   (test "Read map 2"
-        (same? @{:ham @"eggs"}
-               (read "d3:ham4:eggse")))
+        (= {:ham "eggs"}
+           (read "d3:ham4:eggse")))
 
   (test "Read map 3"
-        (same? @{:ham @"eggs" :cost 5}
-               (read "d4:costi5e3:ham4:eggse")))
+        (= {:ham "eggs" :cost 5}
+           (read "d4:costi5e3:ham4:eggse")))
 
   (test "Read nested list"
-        (same? @[@{:rice @"white" :beans @"kidney"} @[@"pepper" @"salt"]
-                @"cheese" @"eggs"  @"ham"]
-               (read "l6:cheese3:ham4:eggsl4:salt6:peppered4:rice5:white5:beans6:kidneyee")))
+        (= ["cheese" "ham" "eggs" ["salt" "pepper"]
+            {:rice "white" :beans "kidney"}]
+           (read "l6:cheese3:ham4:eggsl4:salt6:peppered4:rice5:white5:beans6:kidneyee")))
 
   (test "Read nested map"
+        (= {:cost 5 :for ["finn" "joanna" "emily"] :ham "eggs" :map
+            {:apple "red" :pear "green"}}
+           (read "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee")))
+
+  (test "Read nested map and return mutable values"
         (same? @{:cost 5 :for @[@"emily" @"finn" @"joanna"] @"ham" @"eggs" @"map"
                 @{:apple @"red" :pear @"green"}}
-               (read "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee")))
+               (read
+                "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee"
+                true
+                false
+                true)))
 
   (test "Write integer 1"
         (let [bencoded (bencode/write 0)]
