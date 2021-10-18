@@ -279,7 +279,9 @@
 
   If the return-mutable value is true, then the result uses mutable data
   structures (the default is false)."
-  [reader-in &opt keyword-dicts ignore-newlines return-mutable]
+  [reader-in &keys {:keyword-dicts keyword-dicts
+                    :ignore-newlines ignore-newlines
+                    :return-mutable return-mutable}]
   (read-bencode
    (if (nil? keyword-dicts) true keyword-dicts)
    ignore-newlines
@@ -298,9 +300,14 @@
 
   If the return-mutable value is true, then the result uses mutable data
   structures (the default is false)."
-  [buffer-in &opt keyword-dicts ignore-newlines return-mutable]
+  [buffer-in &keys {:keyword-dicts keyword-dicts
+                    :ignore-newlines ignore-newlines
+                    :return-mutable return-mutable}]
   (let [reader-in (reader buffer-in)]
-    (read reader-in keyword-dicts ignore-newlines return-mutable)))
+    (read reader-in
+          :keyword-dicts keyword-dicts
+          :ignore-newlines ignore-newlines
+          :return-mutable return-mutable)))
 
 (defn read-stream
   "Reads the first bencoded value from the provided stream. If there is no data
@@ -314,9 +321,14 @@
 
   If the return-mutable value is true, then the result uses mutable data
   structures (the default is false)."
-  [stream &opt keyword-dicts ignore-newlines return-mutable]
+  [stream &keys {:keyword-dicts keyword-dicts
+                 :ignore-newlines ignore-newlines
+                 :return-mutable return-mutable}]
   (let [reader-in (reader-stream stream)]
-    (read reader-in keyword-dicts ignore-newlines return-mutable)))
+    (read reader-in
+          :keyword-dicts keyword-dicts
+          :ignore-newlines ignore-newlines
+          :return-mutable return-mutable)))
 
 (defn- write-integer
   "Writes the bencoded representation of the provided integer to the buffer."

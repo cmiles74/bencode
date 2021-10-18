@@ -1,6 +1,8 @@
 (import tester :prefix "")
 (import "../src/bencode")
 
+(def read bencode/read-buffer)
+
 (defn string-ish?
   "Returns true if x is a string or buffer"
   [x]
@@ -56,12 +58,6 @@
                       index)))))
 
     (= a b)))
-
-(defn read
-  "Reads the provided buffer of bencoded data, doesn't turn dictionary keys
-  into keywords."
-  [buffer-in &opt keyword-dicts ignore-newlines return-mutable]
-  (bencode/read-buffer buffer-in keyword-dicts ignore-newlines return-mutable))
 
 (defmacro time
   "Calculates and prints how long it took to execute the provided expression
@@ -147,9 +143,7 @@
                 @{:apple @"red" :pear @"green"}}
                (read
                 "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee"
-                true
-                false
-                true)))
+                :return-mutable true)))
 
   (test "Write integer 1"
         (let [bencoded (bencode/write 0)]
