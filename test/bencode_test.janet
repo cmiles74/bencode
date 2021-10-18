@@ -145,6 +145,23 @@
                 "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee"
                 :return-mutable true)))
 
+  (test "Read nested map and do not convert keys to keywords"
+        (= {"cost" 5 "for" ["finn" "joanna" "emily"] "ham" "eggs" "map"
+            {"apple" "red" "pear" "green"}}
+           (read
+            "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee"
+            :keyword-dicts false)))
+
+  (let [reader (bencode/reader "13:Hello, World!13:Hello, World!")]
+    (loop [value :iterate (bencode/read reader)]
+      (test "Read several values"
+            (= "Hello, World!" value))))
+
+  (let [reader (bencode/reader "13:Hello, World!\n\n13:Hello, World!")]
+    (loop [value :iterate (bencode/read reader :ignore-newlines true)]
+      (test "Read several values divided by newlines"
+            (= "Hello, World!" value))))
+
   (test "Write integer 1"
         (let [bencoded (bencode/write 0)]
           (same? "i0e" bencoded)))
