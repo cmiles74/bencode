@@ -220,4 +220,22 @@
         (let [bencoded (bencode/write {"cost" 5 "for" ["emily" "finn" "joanna"] "ham" "eggs" "map"
                                        {"apple" "red" "pear" "green"}})]
           (same? "d4:costi5e3:forl5:emily4:finn6:joannae3:ham4:eggs3:mapd5:apple3:red4:pear5:greenee"
+                 bencoded)))
+
+  (test "Write nested map in strict-conversion mode"
+        (let [bencoded (bencode/write {:cost 5 :for ["emily" "finn" "joanna"] :ham "eggs" :map
+                                       {"apple" "red" "pear" "green"}}
+                                      :strict-conversion true)]
+          (same? "d4:costi5e3:forl5:emily4:finn6:joannae3:ham4:eggs3:mapd5:apple3:red4:pear5:greenee"
+                 bencoded)))
+
+  (test "Write nested map in strict-conversion mode with not convertible data"
+        (do
+          (def [success? _] (protect (bencode/write :key :strict-conversion true)))
+          (not success?)))
+
+  (test "Write nested map with keywords or symbols"
+        (let [bencoded (bencode/write {"cost" 5 "for" [:emily 'finn "joanna"] :ham :eggs 'map
+                                       {"apple" "red" "pear" "green"}})]
+          (same? "d4:costi5e3:forl5:emily4:finn6:joannae3:ham4:eggs3:mapd5:apple3:red4:pear5:greenee"
                  bencoded))))
