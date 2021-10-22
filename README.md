@@ -61,8 +61,14 @@ The `reader` function returns a map that includes that buffer of data and keeps
 track of what data has been read from the buffer. The `read` function accepts a
 reader and returns the next data structure in the buffer.
 
-When we read a map from the buffer, the keys are turned into keywords by 
-default. You can change this behavior by passing a `false` after the reader.
+These are keyword-style options:
+- When we read a map from the buffer, the keys are turned into keywords by 
+  default. You can change this behavior by passing a `:keyword-dicts false`.
+- Newlines between the consecutive values can be ignored by passing
+  `:ignore-newlines true`.
+- By default returned values are immutable: structs, tuples and strings.
+  To return mutable values: tables, arrays and buffers - pass
+  `:return-mutable true`.
 
 ## Writing
 
@@ -95,6 +101,12 @@ that data in the bencode format.
 ```
 
 The buffer will now contain two data structures in the bencode format.
+
+There's a keyword-style option:
+- By default the conversion of data is lax which means that for keyword or
+  symbol values the type information is lost upon conversion, they are
+  converted to strings. If you need to keep the strict invariant
+  (= str (decode (encode str))), pass `:strict-conversion true`.
 
 # Building
 
