@@ -369,13 +369,21 @@
 
 (defn write-buffer
   "Write the bencoded representation of the data structure to the provided
-  buffer, keywords will be turned into strings (i.e. \":key\" becomes \"key\")."
-  [buffer-out data]
+  buffer, keywords will be turned into strings (i.e. \":key\" becomes \"key\").
+
+  If the strict-conversion value is true, the invariant
+  (= str (decode (encode str))) always holds (the default is false). When false,
+  this mostly means that keyword and symbol values will be converted to strings
+  when encoded."
+  [buffer-out data &keys {:strict-conversion strict-conversion}]
   (cond
     (int? data)
     (write-integer buffer-out data)
 
     (or (string? data) (buffer? data))
+    (write-string buffer-out data)
+
+    (and (or (keyword? data) (symbol? data)) (not strict-conversion))
     (write-string buffer-out data)
 
     (or (array? data) (tuple? data))
@@ -388,7 +396,12 @@
 
 (defn write
   "Returns a buffer with the bencoded representation of the data structure,
-  keywords will be turned into strings (i.e. \":key\" becomes \"key\")."
-  [data]
+  keywords will be turned into strings (i.e. \":key\" becomes \"key\").
+
+  If the strict-conversion value is true, the invariant
+  (= str (decode (encode str))) always holds (the default is false). When false,
+  this mostly means that keyword and symbol values will be converted to strings
+  when encoded."
+  [data &keys {:strict-conversion strict-conversion}]
   (let [buffer-out @""]
-    (write-buffer buffer-out data)))
+    (write-buffer buffer-out data :strict-conversion strict-conversion)))
