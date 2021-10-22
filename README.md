@@ -64,7 +64,7 @@ reader and returns the next data structure in the buffer.
 These are keyword-style options:
 - When we read a map from the buffer, the keys are turned into keywords by 
   default. You can change this behavior by passing a `:keyword-dicts false`.
-- Newlines between the consequtive values can be ignored by passing
+- Newlines between the consecutive values can be ignored by passing
   `:ignore-newlines true`.
 - By default returned values are immutable: structs, tuples and strings.
   To return mutable values: tables, arrays and buffers - pass
