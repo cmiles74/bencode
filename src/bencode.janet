@@ -70,9 +70,8 @@
 (defn- match-byte
   "If the reader's next byte  matches the provided byte, advances the reader"
   [reader-in byte]
-  (cond
-    (= byte (peek-byte reader-in)) (read-byte reader-in)
-    (end? reader-in) false
+  (if (= byte (peek-byte reader-in)) 
+    (read-byte reader-in)
     false))
 
 (defn- digit-byte?
@@ -153,7 +152,7 @@
 (defn- read-list
   "Reads a list, using the read-bencode-fn to parse nested structures, from
   the reader"
-  [read-bencode-fn return-mutable reader-in]
+  [read-bencode-fn return-mutable level reader-in]
   (if-not (match-byte reader-in LIST-FLAG)
     (parse-error "No list found" reader-in))
   (let [list-out (array/new 0)]
@@ -161,7 +160,8 @@
                     (end? reader-in)))
       (let [token (read-bencode-fn reader-in)]
         (array/push list-out token)))
-    (if-not (match-byte reader-in END-FLAG)
+    (if (or (and (= level 0) (not= (peek-byte reader-in) END-FLAG))
+            (and (> level 0) (not (match-byte reader-in END-FLAG))))
       (parse-error "Unterminated list" reader-in))
     (if return-mutable
       list-out
@@ -170,7 +170,7 @@
 (defn- read-dictionary
   "Reads a dictionary, using the read-bencode-fn to parse nested structures,
   from the reader"
-  [read-bencode-fn keyword-dicts return-mutable reader-in]
+  [read-bencode-fn keyword-dicts return-mutable level reader-in]
   (if-not (match-byte reader-in DICTIONARY-FLAG)
     (parse-error "No dictionary found" reader-in))
   (let [dict-out @{}]
@@ -185,7 +185,8 @@
         (put dict-out
              (if keyword-dicts (keyword key-in) key-in)
              val-in)))
-    (if-not (match-byte reader-in END-FLAG)
+    (if (or (and (= level 0) (not= (peek-byte reader-in) END-FLAG))
+            (and (> level 0) (not (match-byte reader-in END-FLAG))))
       (parse-error "Unterminated dictionary" reader-in))
     (if return-mutable
       dict-out
@@ -218,9 +219,9 @@
 
   If the return-mutable value is true, then the result uses mutable data
   structures (the default is false)."
-  [keyword-dicts ignore-newlines return-mutable reader-in]
+  [keyword-dicts ignore-newlines return-mutable level reader-in]
   (let [read-fn
-        (partial read-bencode keyword-dicts ignore-newlines return-mutable)]
+        (partial read-bencode keyword-dicts ignore-newlines return-mutable (inc level))]
     (cond
       (end? reader-in)
       nil
@@ -237,10 +238,10 @@
       (read-string return-mutable reader-in)
 
       (= LIST-FLAG (peek-byte reader-in))
-      (read-list read-fn return-mutable reader-in)
+      (read-list read-fn return-mutable level reader-in)
 
       (= DICTIONARY-FLAG (peek-byte reader-in))
-      (read-dictionary read-fn keyword-dicts return-mutable reader-in)
+      (read-dictionary read-fn keyword-dicts return-mutable level reader-in)
 
       (parse-error (string "Unrecognized token \"" (peek-byte reader-in) "\"")
                    reader-in))))
@@ -286,6 +287,7 @@
    (if (nil? keyword-dicts) true keyword-dicts)
    ignore-newlines
    return-mutable
+   0
    reader-in))
 
 (defn read-buffer
