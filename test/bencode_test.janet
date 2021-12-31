@@ -152,6 +152,28 @@
             "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee"
             :keyword-dicts false)))
 
+  (do
+    (def s (net/server "localhost" "12499" (fn [stream] (:write stream "d4:costi5e3:ham4:eggse"))))
+    (defer (:close s)
+      (def stream (net/connect "localhost" "12499"))
+      (var result nil)
+      (try
+        (ev/with-deadline 1 (set result (bencode/read-stream stream)))
+        ([err] (set result err)))
+      (test "Read dictionary from stream"
+        (is (= {:ham "eggs" :cost 5} result)))))
+
+  (do
+    (def s (net/server "localhost" "12499" (fn [stream] (:write stream "l6:cheese3:ham4:eggse"))))
+    (defer (:close s)
+      (def stream (net/connect "localhost" "12499"))
+      (var result nil)
+      (try
+        (ev/with-deadline 1 (set result (bencode/read-stream stream)))
+        ([err] (set result err)))
+      (test "Read list from stream"
+        (is (= ["cheese" "ham" "eggs"] result)))))
+
   (let [reader (bencode/reader "13:Hello, World!13:Hello, World!")]
     (loop [value :iterate (bencode/read reader)]
       (test "Read several values"
