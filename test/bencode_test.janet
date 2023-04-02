@@ -1,8 +1,6 @@
 (import tester :prefix "")
 (import "../src/bencode")
 
-(def read bencode/read-buffer)
-
 (defn string-ish?
   "Returns true if x is a string or buffer"
   [x]
@@ -72,89 +70,158 @@
 (deftest
   "Read bencoded data"
   (test "Read integer 1"
-        (= 0 (read "i0e")))
+        (= 0 (bencode/read-buffer "i0e")))
 
   (test "Read integer 2"
-        (= 42 (read "i42e")))
+        (= 42 (bencode/read-buffer "i42e")))
 
   (test "Read integer 3"
-        (= -42 (read "i-42e")))
+        (= -42 (bencode/read-buffer "i-42e")))
 
   (test "Read bencoded string 1"
         (= "Hello, World!"
-           (read "13:Hello, World!")))
+           (bencode/read-buffer "13:Hello, World!")))
 
   (test "Read bencoded string 2"
         (= "Hällö, Würld!"
-           (read "16:Hällö, Würld!")))
+           (bencode/read-buffer "16:Hällö, Würld!")))
 
   (test "Read bencoded string 3"
         (= "Здравей, Свят!"
-           (read "25:Здравей, Свят!")))
+           (bencode/read-buffer "25:Здравей, Свят!")))
 
   (test "Read empty bencoded string"
         (same? ""
-               (read "0:")))
+               (bencode/read-buffer "0:")))
 
   (test "Read list 1"
         (= []
-           (read "le")))
+           (bencode/read-buffer "le")))
 
   (test "Read list 2"
         (= ["cheese"]
-           (read "l6:cheesee")))
+           (bencode/read-buffer "l6:cheesee")))
 
   (test "Read list 3"
         (= ["cheese" "ham" "eggs"]
-           (read "l6:cheese3:ham4:eggse")))
+           (bencode/read-buffer "l6:cheese3:ham4:eggse")))
 
   (test "Read list with empty string"
         (same? @[@"cheese" @"" @"eggs" @"ham"]
-               (read "l6:cheese0:3:ham4:eggse")))
+               (bencode/read-buffer "l6:cheese0:3:ham4:eggse")))
+
+  (test "Read two lists"
+        (let [reader (bencode/reader "l6:cheeseel6:cheese3:ham4:eggse")]
+          (= ["cheese"]
+             (bencode/read reader))
+          (= ["cheese" "ham" "eggs"]
+             (bencode/read reader))))
 
   (test "Read map 1"
         (= {}
-           (read "de")))
+           (bencode/read-buffer "de")))
 
   (test "Read map 2"
         (= {:ham "eggs"}
-           (read "d3:ham4:eggse")))
+           (bencode/read-buffer "d3:ham4:eggse")))
 
   (test "Read map 3"
         (= {:ham "eggs" :cost 5}
-           (read "d4:costi5e3:ham4:eggse")))
+           (bencode/read-buffer "d4:costi5e3:ham4:eggse")))
+
+  (test "Read two maps"
+        (let [reader (bencode/reader "d4:costi5e3:ham4:eggsed3:ham4:eggse")]
+          (= {:ham "eggs" :cost 5}
+             (bencode/read reader))
+          (= {:ham "eggs"}
+             (bencode/read reader))))
 
   (test "Read map with empty string value"
         (same? @{:ham @"eggs" :cost 5 :code @""}
-               (read "d4:costi5e3:ham4:eggs4:code0:e")))
+               (bencode/read-buffer "d4:costi5e3:ham4:eggs4:code0:e")))
 
   (test "Read nested list"
         (= ["cheese" "ham" "eggs" ["salt" "pepper"]
             {:rice "white" :beans "kidney"}]
-           (read "l6:cheese3:ham4:eggsl4:salt6:peppered4:rice5:white5:beans6:kidneyee")))
+           (bencode/read-buffer "l6:cheese3:ham4:eggsl4:salt6:peppered4:rice5:white5:beans6:kidneyee")))
+
+  (test "Read multiple nested list"
+        (= ["cheese" "ham" "eggs" ["salt" "pepper"]
+            {:rice "white" :beans "kidney"}]
+           (bencode/read-buffer "l6:cheese3:ham4:eggsl4:salt6:peppered4:rice5:white5:beans6:kidneyee")))
 
   (test "Read nested map"
         (= {:cost 5 :for ["finn" "joanna" "emily"] :ham "eggs" :map
             {:apple "red" :pear "green"}}
-           (read "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee")))
-
-  (test "Read nested map and return mutable values"
-        (same? @{:cost 5 :for @[@"emily" @"finn" @"joanna"] @"ham" @"eggs" @"map"
-                @{:apple @"red" :pear @"green"}}
-               (read
-                "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee"
-                :return-mutable true)))
+           (bencode/read-buffer "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee")))
 
   (test "Read nested map and do not convert keys to keywords"
         (= {"cost" 5 "for" ["finn" "joanna" "emily"] "ham" "eggs" "map"
             {"apple" "red" "pear" "green"}}
-           (read
+           (bencode/read-buffer
             "d3:ham4:eggs4:costi5e3:forl4:finn6:joanna5:emilye3:mapd5:apple3:red4:pear5:greenee"
             :keyword-dicts false)))
 
+  (test "Read integer 1 from stream"
+        (let [server (net/server "localhost" "12499"
+                                 (fn [stream]
+                                   (defer (:close stream)
+                                     (:write stream "i0e"))))]
+          (defer (:close server)
+            (= 0
+               (try
+                 (ev/with-deadline 1 (bencode/read-stream (net/connect "localhost" "12499")))
+                 ([error] (print error) error))))))
+
+  (test "Read integer 2 from stream"
+        (let [server (net/server "localhost" "12499"
+                                 (fn [stream]
+                                   (defer (:close stream)
+                                     (:write stream "i42e"))))]
+          (defer (:close server)
+            (= 42
+               (try
+                 (ev/with-deadline 1 (bencode/read-stream (net/connect "localhost" "12499")))
+                 ([error] (print error) error))))))
+
+  (test "Read integer 2 from stream"
+        (let [server (net/server "localhost" "12499"
+                                 (fn [stream]
+                                   (defer (:close stream)
+                                     (:write stream "i-42e"))))]
+          (defer (:close server)
+            (= -42
+               (try
+                 (ev/with-deadline 1 (bencode/read-stream (net/connect "localhost" "12499")))
+                 ([error] (print error) error))))))
+
+  (test "Read empty string from stream"
+        (let [server (net/server "localhost" "12499"
+                                 (fn [stream]
+                                   (defer (:close stream)
+                                     (:write stream "0:"))))]
+          (defer (:close server)
+            (= ""
+               (try
+                 (ev/with-deadline 1 (bencode/read-stream (net/connect "localhost" "12499")))
+                 ([error] (print error) error))))))
+
+  (test "Read string from stream"
+        (let [server (net/server "localhost" "12499"
+                                 (fn [stream]
+                                   (defer (:close stream)
+                                     (:write stream "13:Hello, World!"))))]
+          (defer (:close server)
+            (= "Hello, World!"
+               (try
+                 (ev/with-deadline 1 (bencode/read-stream (net/connect "localhost" "12499")))
+                 ([error] (print error) error))))))
+
   (test "Read dictionary from stream"
         (let [server (net/server "localhost" "12499"
-                                 (fn [stream] (:write stream "d4:costi5e3:ham4:eggse")))] 
+                                 (fn [stream]
+                                   (defer (:close stream)
+                                     (:write stream "d4:costi5e3:ham4:eggse"))))]
           (defer (:close server)
             (= {:ham "eggs" :cost 5}
                (try
@@ -170,7 +237,6 @@
                (try
                  (ev/with-deadline 1 (bencode/read-stream (net/connect "localhost" "12499")))
                  ([error] (print error) error))))))
-
 
   (test "Read list from stream"
         (let [server (net/server "localhost" "12499"
@@ -191,14 +257,47 @@
                  (ev/with-deadline 1 (bencode/read-stream (net/connect "localhost" "12499")))
                  ([error] (print error) error))))))
 
+  (test "Read two strings from stream"
+        (let [data "6:cheese4:eggs"
+              server (net/server "localhost" "12499" (fn [stream] (:write stream data)))]
+          (defer (:close server)
+            (let [stream (net/connect "localhost" "12499")]
+              (= "cheese"
+                 (try
+                   (ev/with-deadline 1 (bencode/read-stream stream))
+                   ([error] (print error) error)))
+              (= "eggs"
+                 (try
+                   (ev/with-deadline 1 (bencode/read-stream stream))
+                   ([error] (print error) error)))))))
+
+  (test "Read two lists from stream"
+        (let [data "l6:cheeseel6:cheese3:ham4:eggse"
+              server (net/server "localhost" "12499" (fn [stream] (:write stream data)))]
+          (defer (:close server)
+            (let [stream (net/connect "localhost" "12499")]
+              (= ["cheese"]
+                 (try
+                   (ev/with-deadline 1 (bencode/read-stream stream))
+                   ([error] (print error) error)))
+              (= ["cheese" "ham" "eggs"]
+                 (try
+                   (ev/with-deadline 1 (bencode/read-stream stream))
+                   ([error] (print error) error)))))))
+
   (let [reader (bencode/reader "13:Hello, World!13:Hello, World!")]
     (loop [value :iterate (bencode/read reader)]
       (test "Read several values"
             (= "Hello, World!" value))))
 
+  (let [reader (bencode/reader "15:Hello, World!\n\n15:Hello, World!\n\n")]
+    (loop [value :iterate (bencode/read reader)]
+      (test "Read several values with newlines"
+            (= "Hello, World!\n\n" value))))
+
   (let [reader (bencode/reader "13:Hello, World!\n\n13:Hello, World!")]
     (loop [value :iterate (bencode/read reader :ignore-newlines true)]
-      (test "Read several values divided by newlines"
+      (test "Read several values while ignoring newlines"
             (= "Hello, World!" value))))
 
   (test "Write integer 1"
