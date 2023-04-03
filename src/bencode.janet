@@ -407,3 +407,16 @@
   [data &keys {:strict-conversion strict-conversion}]
   (let [buffer-out @""]
     (write-buffer buffer-out data :strict-conversion strict-conversion)))
+
+(defn write-stream
+  "Writes the bencoded representation of the provided data structure to the
+  stream. keywords will be turned into strings (i.e. \":key\" becomes \"key\").
+
+  If the strict-conversion value is true, the invariant
+  (= str (decode (encode str))) always holds (the default is false). When false,
+  this mostly means that keyword and symbol values will be converted to strings
+  when encoded."
+  [stream data &keys {:strict-conversion strict-conversion}]
+  (let [buffer-out @""]
+    (write-buffer buffer-out data :strict-conversion strict-conversion)
+    (net/write stream buffer-out)))
