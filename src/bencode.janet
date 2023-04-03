@@ -205,6 +205,13 @@
     (read-byte reader-in))
   nil)
 
+(defn- compact-reader
+  "If the reader is backed by a stream, clears the buffer and resets the index."
+  [reader-in]
+  (when (reader-in :stream)
+    (put reader-in :index nil)
+    (put reader-in :buffer @"")))
+
 (defn- read-bencode
   "Reads the next bencoded value from the reader, returns null if there is no
   data left to read.
@@ -227,27 +234,29 @@
                ignore-newlines)
         (read-newlines reader-in)))
 
-    (let [byte-in (peek-byte reader-in)]
-      (cond
-        (end? reader-in)
-        nil
+    (let [byte-in (peek-byte reader-in)
+          out (cond
+                (end? reader-in)
+                nil
 
-        (= INT-FLAG byte-in)
-        (read-integer reader-in)
+                (= INT-FLAG byte-in)
+                (read-integer reader-in)
 
-        # strings begin with an integer indicating their length
-        (digit-byte? byte-in)
-        (do (pushback-byte reader-in)
-            (read-string return-mutable reader-in))
+                # strings begin with an integer indicating their length
+                (digit-byte? byte-in)
+                (do (pushback-byte reader-in)
+                    (read-string return-mutable reader-in))
 
-        (= LIST-FLAG byte-in)
-        (read-list read-fn return-mutable reader-in)
+                (= LIST-FLAG byte-in)
+                (read-list read-fn return-mutable reader-in)
 
-        (= DICTIONARY-FLAG byte-in)
-        (read-dictionary read-fn keyword-dicts return-mutable reader-in)
+                (= DICTIONARY-FLAG byte-in)
+                (read-dictionary read-fn keyword-dicts return-mutable reader-in)
 
-        (parse-error (string "Unrecognized token \"" (peek-byte reader-in) "\"")
-                     reader-in)))))
+                (parse-error (string "Unrecognized token \"" (peek-byte reader-in) "\"")
+                             reader-in))]
+      (compact-reader reader-in)
+      out)))
 
 (defn reader
   "Returns a \"reader\" for the buffer.
@@ -373,10 +382,10 @@
   "Write the bencoded representation of the data structure to the provided
   buffer, keywords will be turned into strings (i.e. \":key\" becomes \"key\").
 
-  If the strict-conversion value is true, the invariant
-  (= str (decode (encode str))) always holds (the default is false). When false,
-  this mostly means that keyword and symbol values will be converted to strings
-  when encoded."
+  If the strict-conversion value is true, the invariant (= str (decode (encode
+  str))) always holds (the default is false). When false, this mostly means that
+  keyword and symbol values will be converted to strings when encoded. An
+  exception will be thrown if data is encountered that cannot be encoded."
   [buffer-out data &keys {:strict-conversion strict-conversion}]
   (cond
     (int? data)
