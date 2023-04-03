@@ -234,29 +234,27 @@
                ignore-newlines)
         (read-newlines reader-in)))
 
-    (let [byte-in (peek-byte reader-in)
-          out (cond
-                (end? reader-in)
-                nil
+    (let [byte-in (peek-byte reader-in)]
+      (cond
+        (end? reader-in)
+        nil
 
-                (= INT-FLAG byte-in)
-                (read-integer reader-in)
+        (= INT-FLAG byte-in)
+        (read-integer reader-in)
 
-                # strings begin with an integer indicating their length
-                (digit-byte? byte-in)
-                (do (pushback-byte reader-in)
-                    (read-string return-mutable reader-in))
+        # strings begin with an integer indicating their length
+        (digit-byte? byte-in)
+        (do (pushback-byte reader-in)
+            (read-string return-mutable reader-in))
 
-                (= LIST-FLAG byte-in)
-                (read-list read-fn return-mutable reader-in)
+        (= LIST-FLAG byte-in)
+        (read-list read-fn return-mutable reader-in)
 
-                (= DICTIONARY-FLAG byte-in)
-                (read-dictionary read-fn keyword-dicts return-mutable reader-in)
+        (= DICTIONARY-FLAG byte-in)
+        (read-dictionary read-fn keyword-dicts return-mutable reader-in)
 
-                (parse-error (string "Unrecognized token \"" (peek-byte reader-in) "\"")
-                             reader-in))]
-      (compact-reader reader-in)
-      out)))
+        (parse-error (string "Unrecognized token \"" (peek-byte reader-in) "\"")
+                     reader-in)))))
 
 (defn reader
   "Returns a \"reader\" for the buffer.
@@ -293,11 +291,13 @@
   [reader-in &keys {:keyword-dicts keyword-dicts
                     :ignore-newlines ignore-newlines
                     :return-mutable return-mutable}]
-  (read-bencode
-   (if (nil? keyword-dicts) true keyword-dicts)
-   ignore-newlines
-   return-mutable
-   reader-in))
+  (let [out (read-bencode
+             (if (nil? keyword-dicts) true keyword-dicts)
+             ignore-newlines
+             return-mutable
+             reader-in)]
+    (compact-reader reader-in)
+    out))
 
 (defn read-buffer
   "Reads the first bencoded value from the provided buffer, returns null if
