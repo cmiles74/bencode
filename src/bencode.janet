@@ -95,22 +95,6 @@
   [byte]
   (if (and (< 47 byte) (> 58 byte)) true false))
 
-(defn clear-reader
-  "Clears a reader by dropping all of the read data from the buffer and
-  resetting the index"
-  [reader-in]
-  (if (reader-in :stream)
-    @{:index nil
-      :buffer (buffer/slice (reader-in :buffer) -1)
-      :stream (reader-in :stream)}
-    @{:index nil
-      :buffer (buffer/slice (reader-in :buffer) -1)}))
-
-(defn advance-clear-reader
-  [reader-in]
-  (read-byte reader-in)
-  (clear-reader reader-in))
-
 (defn- read-integer-bytes
   "Reads the next integer from the buffer
 
@@ -217,9 +201,8 @@
   "Reads one or more new lines from the reader"
   [reader-in]
   (while (and (not (end? reader-in))
-             (newline? (peek-byte reader-in)))
-    (read-byte reader-in)
-    (clear-reader reader-in))
+              (newline? (peek-byte reader-in)))
+    (read-byte reader-in))
   nil)
 
 (defn- read-bencode
