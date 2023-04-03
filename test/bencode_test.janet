@@ -271,6 +271,21 @@
                    (ev/with-deadline 1 (bencode/read-stream stream))
                    ([error] (print error) error)))))))
 
+  (test "Read two strings from stream 2"
+        (let [data "6:cheese4:eggs"
+              server (net/server "localhost" "12499" (fn [stream] (:write stream data)))]
+          (defer (:close server)
+            (let [stream (net/connect "localhost" "12499")
+                 rdr (bencode/reader-stream stream)]
+              (= "cheese"
+                 (try
+                   (ev/with-deadline 1 (bencode/read rdr))
+                   ([error] (print error) error)))
+              (= "eggs"
+                 (try
+                   (ev/with-deadline 1 (bencode/read rdr))
+                   ([error] (print error) error)))))))
+
   (test "Read two lists from stream"
         (let [data "l6:cheeseel6:cheese3:ham4:eggse"
               server (net/server "localhost" "12499" (fn [stream] (:write stream data)))]
