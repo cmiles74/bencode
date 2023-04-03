@@ -28,44 +28,60 @@ format.
 
 ## Reading
 
-We provide three functions to make it easier to consume data in the Bencode 
-format. The easiest case is when you have one a string with one data structure.
+We provide two functions to make it easier to consume data in the Bencode
+format: `read-buffer` and `read-stream`. The easiest case is when you have one a
+string with one data structure, you may pass the string to `read-buffer` and get
+your ben-decoded data.
 
 ```janet
 > (import bencode)
-> (def data (bencode/read-buffer "d3:ham4:eggs4:costi5ee"))
-  
+> (bencode/read-buffer "d3:ham4:eggs4:costi5ee")
 {:cost 5 :ham @"eggs"}
 ```
 
-The `read-buffer` function reads the first structure from the buffer and returns
-it. If you have more than one structure, you will want to wrap a reader around
-your buffer.
+Here the "buffer" is the string with the bencoded data. We read the first and
+only item from the buffer and return it.
+
+If you have more than one structure, you will want to wrap a reader around your
+buffer with the `reader` function.
 
 ```janet
 > (import bencode)
-> (def reader (bencode/reader "d3:ham4:eggs4:costi5eed3:ham4:eggse"))
-
+> (def rdr (bencode/reader "d3:ham4:eggs4:costi5eed3:ham4:eggse"))
 @{:buffer "d3:ham4:eggs4:costi5eed3:ham4:eggse" :index 0}
-
-> (bencode/read reader)
-
+> (bencode/read rdr)
 {:cost 5 :ham @"eggs"}
-
-> (bencode/read reader)
-
+> (bencode/read rdr)
 {:ham @"eggs"}
+> (bencode/read rdr)
+nil
 ```
 
-The `reader` function returns a map that includes that buffer of data and keeps
-track of what data has been read from the buffer. The `read` function accepts a
-reader and returns the next data structure in the buffer.
+If you are reading data from a stream then clearly `read-stream` is the function
+for you. You pass it the stream and it reads the next chunk of data, if no data
+has yet been written to the stream then it will block until some data is
+available. You may also create a reader around your stream with `reader-stream`
+and then perform successive read operations.
 
-These are keyword-style options:
+The `reader` and `reader-stream` functions returns a table includes the buffer
+or stream of data and keeps track of what data has been read from the buffer.
+The `read` function accepts a reader and returns the next data structure in the
+buffer.
+
+The `read-buffer` and `read-stream` functions are for your convenience, they
+accept a stream or buffer and then return the next data item from the stream or
+buffer. Only one item may be read in this way with `read-buffer`, each call will
+create a new reader around the same buffer and will return the same data.
+
+The `read`, `read-buffer` and `read-stream` methods accept the following
+keyword-style options:
+
 - When we read a map from the buffer, the keys are turned into keywords by 
   default. You can change this behavior by passing a `:keyword-dicts false`.
+
 - Newlines between the consecutive values can be ignored by passing
   `:ignore-newlines true`.
+
 - By default returned values are immutable: structs, tuples and strings.
   To return mutable values: tables, arrays and buffers - pass
   `:return-mutable true`.
@@ -81,32 +97,48 @@ When a map is encoded, the keys are encoded as strings.
 ```janet
 > (import bencode)
 > (def buffer-out (bencode/write {:name "Emily" :job "Student"}))
-
 @"d3:job7:Student4:name5:Emilye"
 ```
 
-The `write-buffer` function accepts a buffer and a data structure and appends
-that data in the bencode format.
+The `write` function accepts a buffer and a data structure and returns a buffer
+with the bencoded data.
 
 ```janet
 > (import bencode)
 > (def buffer-out @"")
-> (bencode/write-buffer buffer-out {:name "Emily" :job "Student"})
-
+> (bencode/write {:name "Emily" :job "Student"})
 @"d3:job7:Student4:name5:Emilye"
+```
 
+The `write-buffer` function accepts a buffer and writes the bencoded value into
+that buffer. In the example below we write two items to the buffer.
+
+```janet
+> (import bencode)
+> (def buffer-out @"")
+> (bencode/write-buffer {:name "Emily" :job "Student"})
+@"d3:job7:Student4:name5:Emilye"
 > (bencode/write-buffer buffer-out {:name "Joanna" :job "Career Advisor"})
-
 @"d3:job7:Student4:name5:Emilyed3:job14:Career Advisor4:name6:Joannae"
 ```
 
-The buffer will now contain two data structures in the bencode format.
+If you need to write to a stream, you can always write to a buffer and then
+write the buffer to the stream. Or you may use the `write-stream` function.
 
-There's a keyword-style option:
+```janet
+> (import bencode)
+> (def s (net/connect "someserver.com" "8080"))
+> (bencode/write-stream s {:name "Emily" :job "Student"})
+> (:close s)
+```
+
+These functions also accepts some keyword-style options:
+
 - By default the conversion of data is lax which means that for keyword or
-  symbol values the type information is lost upon conversion, they are
-  converted to strings. If you need to keep the strict invariant
-  (= str (decode (encode str))), pass `:strict-conversion true`.
+  symbol values the type information is lost upon conversion, they are converted
+  to strings. If you need to keep the strict invariant `(= str (decode (encode
+  str)))`, pass `:strict-conversion true`. This will throw an exception for data
+  that cannot be encoded.
 
 # Building
 
