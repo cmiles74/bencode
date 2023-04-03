@@ -167,7 +167,7 @@
 (defn- read-list
   "Reads a list, using the read-bencode-fn to parse nested structures, from
   the reader"
-  [read-bencode-fn return-mutable level reader-in]
+  [read-bencode-fn return-mutable reader-in]
   (if-not (= LIST-FLAG (peek-byte reader-in))
     (parse-error "No list found" reader-in))
   (let [list-out (array/new 0)]
@@ -185,7 +185,7 @@
 (defn- read-dictionary
   "Reads a dictionary, using the read-bencode-fn to parse nested structures,
   from the reader"
-  [read-bencode-fn keyword-dicts return-mutable level reader-in]
+  [read-bencode-fn keyword-dicts return-mutable reader-in]
   (if-not (= DICTIONARY-FLAG (peek-byte reader-in))
     (parse-error "No dictionary found" reader-in))
   (let [dict-out @{}]
@@ -234,9 +234,9 @@
 
   If the return-mutable value is true, then the result uses mutable data
   structures (the default is false)."
-  [keyword-dicts ignore-newlines return-mutable level reader-in]
+  [keyword-dicts ignore-newlines return-mutable reader-in]
   (let [read-fn
-        (partial read-bencode keyword-dicts ignore-newlines return-mutable (inc level))]
+        (partial read-bencode keyword-dicts ignore-newlines return-mutable)]
 
     (let [byte-in (read-byte reader-in)]
       (cond
@@ -256,10 +256,10 @@
             (read-string return-mutable reader-in))
 
         (= LIST-FLAG byte-in)
-        (read-list read-fn return-mutable level reader-in)
+        (read-list read-fn return-mutable reader-in)
 
         (= DICTIONARY-FLAG byte-in)
-        (read-dictionary read-fn keyword-dicts return-mutable level reader-in)
+        (read-dictionary read-fn keyword-dicts return-mutable reader-in)
 
         (parse-error (string "Unrecognized token \"" (peek-byte reader-in) "\"")
                      reader-in)))))
@@ -303,7 +303,6 @@
    (if (nil? keyword-dicts) true keyword-dicts)
    ignore-newlines
    return-mutable
-   0
    reader-in))
 
 (defn read-buffer
