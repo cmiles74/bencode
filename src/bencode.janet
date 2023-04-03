@@ -221,14 +221,16 @@
   (let [read-fn
         (partial read-bencode keyword-dicts ignore-newlines return-mutable)]
 
+    # if we're ignoring newlines, consume them now
     (let [byte-in (read-byte reader-in)]
+      (when (and (newline? byte-in)
+               ignore-newlines)
+        (read-newlines reader-in)))
+
+    (let [byte-in (peek-byte reader-in)]
       (cond
         (end? reader-in)
         nil
-
-        (and (newline? byte-in)
-             ignore-newlines)
-        (read-newlines reader-in)
 
         (= INT-FLAG byte-in)
         (read-integer reader-in)
