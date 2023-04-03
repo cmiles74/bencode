@@ -310,9 +310,14 @@
       (test "Read several values with newlines"
             (= "Hello, World!\n\n" value))))
 
+  (let [reader (bencode/reader "15:Hello, World!\n\n\n\n15:Hello, World!\n\n\n\n\n\n\n")]
+    (loop [value :iterate (bencode/read reader :ignore-newlines true)]
+      (test "Read several values with newlines 2"
+            (= "Hello, World!\n\n" value))))
+
   (let [reader (bencode/reader "13:Hello, World!\n\n13:Hello, World!")]
     (loop [value :iterate (bencode/read reader :ignore-newlines true)]
-      (test "Read several values while ignoring newlines"
+      (test "Read several values while ignoring newlines 3"
             (= "Hello, World!" value))))
 
   (test "Write integer 1"
